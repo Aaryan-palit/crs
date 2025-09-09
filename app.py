@@ -1,4 +1,5 @@
 # streamlit_app.py
+from st_aggrid import AgGrid, GridOptionsBuilder
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -160,32 +161,54 @@ if uploaded_file is not None:
     # Show processed results
     st.write("### Processed Results")
     
-    # All columns
+    # --------------------------
+    # 1. Column selection dropdown (top-right like before)
+    # --------------------------
     all_columns = sampleDf.columns.tolist()
     
-    # Create two columns: left empty space, right for filter
-    col1, col2 = st.columns([6, 1])  
+    col1, col2 = st.columns([6, 1])
     
     with col2:
         selected_columns = st.multiselect(
             "",
             options=all_columns,
-            # default=all_columns,
             label_visibility="collapsed",
-            placeholder="🔍 Filter columns"
+            placeholder="🔍 Select Columns"
         )
     
-    # If nothing selected, fall back to all
+    # If nothing selected → show all
     if not selected_columns:
         selected_columns = all_columns
     
-    # Display filtered dataframe
-    st.dataframe(
-        sampleDf[selected_columns].head(50),
-        use_container_width=True
+    filtered_df = sampleDf[selected_columns]
+    
+    # --------------------------
+    # 2. AgGrid with Excel-like filters
+    # --------------------------
+    gb = GridOptionsBuilder.from_dataframe(filtered_df)
+    
+    # Configure columns
+    for col in filtered_df.columns:
+        gb.configure_column(
+            col,
+            filter="agSetColumnFilter",         # checkbox filter per column
+            sortable=True,
+            resizable=True,
+            floatingFilter=True,                # quick filter row under headers
+            filterParams={"suppressMiniFilter": False}  # search box inside filter menu
+        )
+    
+    grid_options = gb.build()
+    
+    AgGrid(
+        filtered_df,
+        gridOptions=grid_options,
+        height=500,
+        width="100%",
+        fit_columns_on_grid_load=False,
+        enable_enterprise_modules=True,   # required for value filters
+        update_mode="MODEL_CHANGED"
     )
-
-
 
     # Download button
     # Generate file name based on uploaded file
